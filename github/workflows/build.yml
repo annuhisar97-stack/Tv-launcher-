@@ -1,0 +1,46 @@
+name: Build Android APK from ZIP
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Extract Project ZIP
+        run: |
+          mkdir project
+          unzip -q "*.zip" -d project
+          # Find directory containing settings.gradle or build.gradle
+          DIR=$(find project -maxdepth 2 -name "settings.gradle*" -exec dirname {} \;)
+          echo "PROJECT_DIR=$DIR" >> $GITHUB_ENV
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Debug APK
+        run: |
+          cd ${{ env.PROJECT_DIR }}
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoAds-TV-Launcher-APK
+          path: "${{ env.PROJECT_DIR }}/**/build/outputs/apk/debug/*.apk"
